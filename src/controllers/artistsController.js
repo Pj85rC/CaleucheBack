@@ -9,8 +9,8 @@ const createArtist = async (req, res) => {
   try {
     const queryText =
       "INSERT INTO artists(name, created_at) VALUES($1, $2) RETURNING id";
-    const value = [name, createdAt];
-    const result = await pool.query(queryText, value);
+    const values = [name, createdAt];
+    const result = await pool.query(queryText, values);
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -20,9 +20,10 @@ const createArtist = async (req, res) => {
 };
 
 const getArtists = async (req, res) => {
+  const queryText = "SELECT * FROM artists";
   try {
-    const Artists = await pool.query("SELECT * FROM artists");
-    res.json(Artists.rows);
+    const result = await pool.query(queryText);
+    res.json(result.rows);
   } catch (error) {
     console.log("HORRROR artists");
   }
@@ -30,10 +31,11 @@ const getArtists = async (req, res) => {
 
 const getArtist = async (req, res) => {
   const { id } = req.params;
+
+  const queryText = "SELECT * FROM artists WHERE id = $1";
+  const value = [id];
   try {
-    const result = await pool.query("SELECT * FROM artists WHERE id = $1", [
-      id,
-    ]);
+    const result = await pool.query(queryText, value);
     return result.rows.length === 0
       ? res.status(404).json({ message: "Artist not found" })
       : res.json(result.rows[0]);
@@ -64,6 +66,7 @@ const updateArtist = async (req, res, next) => {
   const body = req.body;
   const columns = [];
   const values = [];
+  const updatedAt = getCurrentDate();
   let argumentCount = 1;
 
   for (const key in body) {
@@ -74,17 +77,20 @@ const updateArtist = async (req, res, next) => {
     }
   }
 
+  columns.push(`updated_at = $${argumentCount}`);
+  values.push(updatedAt);
+
   values.push(id);
 
-  const queryText = `UPDATE artists SET ${columns.join(
-    ", "
-  )} WHERE id = $${argumentCount}`;
-
+  const queryText = `UPDATE artists SET ${columns.join(", ")} WHERE id = $${
+    argumentCount + 1
+  }`;
   try {
     const result = await pool.query(queryText, values);
-    res
-      .status(200)
-      .json({ status: "success", message: "Record updated successfully" });
+
+    return result.rowCount === 0
+      ? res.status(404).json({ message: "User not found" })
+      : res.status(200).json({ message: "Artist updated successfully" });
   } catch (err) {
     res.status(500).json({ status: "error", message: "An error occurred" });
   }
@@ -95,5 +101,5 @@ module.exports = {
   deleteArtist,
   updateArtist,
   getArtists,
-  getArtist
+  getArtist,
 };
