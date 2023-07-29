@@ -4,9 +4,10 @@ const jwt = require("jsonwebtoken");
 const { getCurrentDate } = require("../helpers/dateHelpers");
 
 const getUsers = async (req, res, next) => {
+  const queryText = "SELECT * FROM users";
   try {
-    const Users = await pool.query("SELECT * FROM users");
-    res.json(Users.rows);
+    const result = await pool.query(queryText);
+    res.json(result.rows);
   } catch (error) {
     console.log("HORRROR users");
   }
@@ -14,8 +15,11 @@ const getUsers = async (req, res, next) => {
 
 const getUser = async (req, res, next) => {
   const { id } = req.params;
+
+  const queryText = "SELECT * FROM users WHERE id = $1";
+  const value = [id];
   try {
-    const result = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
+    const result = await pool.query(queryText, value);
     return result.rows.length === 0
       ? res.status(404).json({ message: "User not found" })
       : res.json(result.rows[0]);
@@ -38,7 +42,6 @@ const createUser = async (req, res) => {
     const result = await pool.query(queryText, values);
     res.json(result.rows[0]);
   } catch (error) {
-    console.log(createdAt);
     res.status(500).json({ error: "Horror user" });
   }
 };
@@ -47,10 +50,10 @@ const deleteUser = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const deleteUserQuery = "DELETE FROM users WHERE id = $1";
-    const values = [id];
+    const queryText = "DELETE FROM users WHERE id = $1";
+    const value = [id];
 
-    const result = await pool.query(deleteUserQuery, values);
+    const result = await pool.query(queryText, value);
 
     return result.rowCount === 0
       ? res.status(404).json({ message: "User not found" })
@@ -61,7 +64,6 @@ const deleteUser = async (req, res) => {
   }
 };
 
-//POST/login (loguea autentica a un usuario y devuelve token de acceso [request: email, password], [res: token, user object; id, email, picture])
 const login = async (req, res) => {
   const { identifier, password } = req.body;
 
@@ -96,13 +98,10 @@ const updateUser = async (req, res, next) => {
   const body = req.body;
   const columns = [];
   const values = [];
+  const updatedAt = getCurrentDate();
   let argumentCount = 1;
-  console.log(body);
 
-  columns.push(`updated_at = $${argumentCount}`);
-  values.push(getCurrentDate());
-  argumentCount++;
-
+  
   for (const key in body) {
     if (body.hasOwnProperty(key)) {
       if (key === "password") {
@@ -116,18 +115,24 @@ const updateUser = async (req, res, next) => {
       argumentCount++;
     }
   }
+  
+  columns.push(`updated_at = $${argumentCount}`);
+  values.push(updatedAt);
 
   values.push(id);
 
-  const queryText = `UPDATE users SET ${columns.join(
-    ", "
-  )} WHERE id = $${argumentCount}`;
+  const queryText = `UPDATE users SET ${columns.join(", ")} WHERE id = $${
+    argumentCount + 1
+  }`;
 
   try {
     const result = await pool.query(queryText, values);
-    res
-      .status(200)
-      .json({ status: "success", message: "Record updated successfully" });
+    
+    return result.rowCount === 0
+      ? res.status(404).json({ message: "User not found" })
+      : res
+          .status(200)
+          .json({ status: "success", message: "User updated successfully" });
   } catch (err) {
     res.status(500).json({ status: "error", message: "An error occurred" });
   }
@@ -138,12 +143,13 @@ const updateUser = async (req, res, next) => {
 const addFavourites = async (req, res) => {
   const { festival_id } = req.body;
   const { user_id } = req.params;
-  console.log(festival_id, user_id);
+  const createdAt = getCurrentDate();
+
+  const queryText =
+    "INSERT INTO favourites (user_id, festival_id, created_at) VALUES ($1, $2, $3) RETURNING *";
+  const values = [user_id, festival_id, createdAt];
   try {
-    const result = await pool.query(
-      "INSERT INTO favourites (user_id, festival_id) VALUES ($1, $2) RETURNING *",
-      [user_id, festival_id]
-    );
+    const result = await pool.query(queryText, values);
     res.json(result.rows[0]);
   } catch (error) {
     res.status(404).json({ error: "Horror favourites." });
@@ -153,14 +159,14 @@ const addFavourites = async (req, res) => {
 const deleteFavourite = async (req, res) => {
   const { user_id, festival_id } = req.params;
 
-  const deleteFavouriteQuery =
+  const queryText =
     "DELETE FROM favourites WHERE user_id = $1 AND festival_id = $2";
   const values = [user_id, festival_id];
 
   console.log(values);
 
   try {
-    const result = await pool.query(deleteFavouriteQuery, values);
+    const result = await pool.query(queryText, values);
 
     if (result.rowCount === 0) {
       res.status(404).json({ message: "Favourite not found" });

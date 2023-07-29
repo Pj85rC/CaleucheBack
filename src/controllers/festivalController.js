@@ -3,7 +3,6 @@ const { getCurrentDate } = require("../helpers/dateHelpers");
 
 const getFestivals = async (req, res, next) => {
   try {
-    // throw new Error ('Raios!! algo está mal')
     const queryText = "SELECT * FROM festivals";
     const result = await pool.query(queryText);
 
@@ -36,9 +35,9 @@ const createFestival = async (req, res, next) => {
 
   try {
     const queryText =
-      "INSERT INTO festivals (name, description, location, create_at) VALUES ($1, $2, $3, $4) RETURNING *";
-    const value = [name, description, location, createdAt];
-    const result = await pool.query(queryText, value);
+      "INSERT INTO festivals (name, description, location, created_at) VALUES ($1, $2, $3, $4) RETURNING *";
+    const values = [name, description, location, createdAt];
+    const result = await pool.query(queryText, values);
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -67,6 +66,7 @@ const updateFestival = async (req, res, next) => {
   const body = req.body;
   const columns = [];
   const values = [];
+  const updatedAt = getCurrentDate();
   let argumentCount = 1;
 
   for (const key in body) {
@@ -77,11 +77,14 @@ const updateFestival = async (req, res, next) => {
     }
   }
 
+  columns.push(`updated_at = $${argumentCount}`);
+  values.push(updatedAt);
+
   values.push(id);
 
   const queryText = `UPDATE festivals SET ${columns.join(
     ", "
-  )} WHERE id = $${argumentCount}`;
+  )} WHERE id = $${argumentCount + 1}`;
 
   try {
     const result = await pool.query(queryText, values);
@@ -112,11 +115,13 @@ const getLineup = async (req, res) => {
 //POST /festivals/:id/lineup
 const addArtistToLineup = async (req, res) => {
   const { id } = req.params;
-  const { artistId, year } = req.body; //assuming artist id is passed in request body
+  const { artistId, year } = req.body; 
+  const createdAt = getCurrentDate();
+
   try {
     const queryText =
-      "INSERT INTO lineup(festival_id, artist_id, year) VALUES($1, $2, $3) RETURNING id";
-    const values = [id, artistId, year];
+      "INSERT INTO lineup(festival_id, artist_id, year, created_at) VALUES($1, $2, $3, $4) RETURNING id";
+    const values = [id, artistId, year, createdAt];
     const result = await pool.query(queryText, values);
 
     res.status(201).json(result.rows[0]);
@@ -154,5 +159,5 @@ module.exports = {
   updateFestival,
   getLineup,
   addArtistToLineup,
-  removeArtistFromLineup
+  removeArtistFromLineup,
 };
