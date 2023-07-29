@@ -2,6 +2,9 @@ const pool = require("../db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { getCurrentDate } = require("../helpers/dateHelpers");
+const {
+  verifyCredentials,
+} = require("../middlewares/verifyCredentialsMiddleware");
 
 const getUsers = async (req, res, next) => {
   const queryText = "SELECT * FROM users";
@@ -13,7 +16,7 @@ const getUsers = async (req, res, next) => {
   }
 };
 
-const getUser = async (req, res, next) => {
+const getUser = async (req, res) => {
   const { id } = req.params;
 
   const queryText = "SELECT * FROM users WHERE id = $1";
@@ -65,14 +68,14 @@ const deleteUser = async (req, res) => {
 };
 
 const login = async (req, res) => {
-  const { identifier, password } = req.body;
-
   try {
-    const user = await pool.query(
-      "SELECT * FROM users WHERE email = $1 OR username = $1",
-      [identifier]
-    );
+    const { username, email, password } = req.body;
+    const user = await verifyCredentials(username, email, password);
+    console.log(user);
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET);
+    res.send(token);
   } catch (error) {
+    console.log(error);
     res.status(500).json({ error: "login incorrecto" });
   }
 };
@@ -101,7 +104,6 @@ const updateUser = async (req, res, next) => {
   const updatedAt = getCurrentDate();
   let argumentCount = 1;
 
-  
   for (const key in body) {
     if (body.hasOwnProperty(key)) {
       if (key === "password") {
@@ -115,7 +117,7 @@ const updateUser = async (req, res, next) => {
       argumentCount++;
     }
   }
-  
+
   columns.push(`updated_at = $${argumentCount}`);
   values.push(updatedAt);
 
@@ -127,7 +129,7 @@ const updateUser = async (req, res, next) => {
 
   try {
     const result = await pool.query(queryText, values);
-    
+
     return result.rowCount === 0
       ? res.status(404).json({ message: "User not found" })
       : res
@@ -188,4 +190,5 @@ module.exports = {
   getFavourites,
   addFavourites,
   deleteFavourite,
+  login,
 };
