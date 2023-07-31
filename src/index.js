@@ -1,11 +1,10 @@
-require('dotenv').config();
+require("dotenv").config();
 
 const express = require("express");
 const morgan = require("morgan");
-const cors = require('cors');
+const cors = require("cors");
 
 const Routes = require("./routes/routes");
-
 
 const app = express();
 
@@ -17,10 +16,12 @@ app.use(Routes);
 
 app.use((err, req, res, next) => {
   return res.json({
-    message: err.message
+    message: err.message,
   });
 });
 
-app.listen(4000);
-console.log("Server on 4000");
+const server = app.listen(4000, () => {
+  console.log("Server on 4000");
+});
 
+module.exports = server;
