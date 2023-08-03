@@ -53,7 +53,7 @@ router.delete(
 router.get("/testdb", testDb);
 router.get("/users", authenticateToken, getUsers);
 router.get("/users/:id", authenticateToken, getUser);
-router.post("/users", authenticateToken, createUser);
+router.post("/users", createUser);
 router.patch("/users/:id", authenticateToken, updateUser);
 router.delete("/users/:id", authenticateToken, deleteUser);
 router.get("/users/:user_id/favourites", authenticateToken, getFavourites);
