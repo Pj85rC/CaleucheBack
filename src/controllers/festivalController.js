@@ -97,7 +97,41 @@ const updateFestival = async (req, res, next) => {
 };
 
 //GET /festivals/:id/lineup
+
 const getLineup = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const queryText = `
+      SELECT 
+        a.name, 
+        a.photo_url,
+        array_agg(DISTINCT g.name) as genres,
+        json_agg(
+          json_build_object(
+            'platform', al.platform, 
+            'url', al.url
+          )
+        ) as artist_links
+      FROM lineup l
+      JOIN artists a ON l.artist_id = a.id
+      JOIN artist_genre ag ON l.artist_id = ag.artist_id
+      JOIN genres g ON ag.genre_id = g.id
+      LEFT JOIN artist_links al ON l.artist_id = al.artist_id
+      WHERE l.festival_id = $1
+      GROUP BY a.id;
+    `;
+    const value = [id];
+    const result = await pool.query(queryText, value);
+    return result.rows.length === 0
+      ? res.status(404).json({ message: "Lineup not found" })
+      : res.json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Server error" });
+  }
+};
+
+/* const getLineup = async (req, res) => {
   const { id } = req.params;
   try {
     const queryText =
@@ -110,7 +144,7 @@ const getLineup = async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: "Server error" });
   }
-};
+}; */
 
 //POST /festivals/:id/lineup
 const addArtistToLineup = async (req, res) => {

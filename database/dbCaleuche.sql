@@ -121,5 +121,7 @@ WHERE table_name = 'users';
 --para eliminar tablas cuando tienen comprometidas connexiones con foreign ej:
 DROP TABLE users CASCADE;
 
-
+--Se agrega la columna photo_url
+ALTER TABLE artists
+ADD COLUMN photo_url VARCHAR(256);
 
