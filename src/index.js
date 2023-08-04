@@ -20,8 +20,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-const server = app.listen(4000, () => {
-  console.log("Server on 4000");
+const port = process.env.PORT || 4000;
+
+const server = app.listen(port, () => {
+  console.log(`Server on ${port}`);
 });
 
 module.exports = server;

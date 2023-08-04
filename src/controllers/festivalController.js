@@ -30,13 +30,13 @@ const getFestival = async (req, res, next) => {
 };
 
 const createFestival = async (req, res, next) => {
-  const { name, description, location } = req.body;
+  const { name, description, location, date, photoURL } = req.body;
   const createdAt = getCurrentDate();
 
   try {
     const queryText =
-      "INSERT INTO festivals (name, description, location, created_at) VALUES ($1, $2, $3, $4) RETURNING *";
-    const values = [name, description, location, createdAt];
+      "INSERT INTO festivals (name, description, location, date, photoURL, created_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *";
+    const values = [name, description, location, date, photoURL, createdAt];
     const result = await pool.query(queryText, values);
 
     res.json(result.rows[0]);

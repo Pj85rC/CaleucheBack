@@ -1,5 +1,5 @@
 const { Router } = require("express");
-const authenticateToken = require('../middlewares/authTokenMiddleware');
+const authenticateToken = require("../middlewares/authTokenMiddleware");
 
 // const pool = require('../db')
 
@@ -23,7 +23,8 @@ const {
   getFavourites,
   addFavourites,
   deleteFavourite,
-  login
+  login,
+  testDb,
 } = require("../controllers/userController.js");
 
 const {
@@ -43,8 +44,13 @@ router.delete("/festivals/:id", authenticateToken, deleteFestival);
 router.patch("/festivals/:id", authenticateToken, updateFestival);
 router.get("/festivals/:id/lineup", authenticateToken, getLineup);
 router.post("/festivals/:id/lineup", authenticateToken, addArtistToLineup);
-router.delete("/festivals/:id/lineup/artistId", authenticateToken, removeArtistFromLineup);
+router.delete(
+  "/festivals/:id/lineup/artistId",
+  authenticateToken,
+  removeArtistFromLineup
+);
 
+router.get("/testdb", testDb);
 router.get("/users", authenticateToken, getUsers);
 router.get("/users/:id", authenticateToken, getUser);
 router.post("/users", createUser);
@@ -52,7 +58,11 @@ router.patch("/users/:id", authenticateToken, updateUser);
 router.delete("/users/:id", authenticateToken, deleteUser);
 router.get("/users/:user_id/favourites", authenticateToken, getFavourites);
 router.post("/users/:user_id/favourites", authenticateToken, addFavourites);
-router.delete("/users/:user_id/favourites/:festival_id", authenticateToken, deleteFavourite);
+router.delete(
+  "/users/:user_id/favourites/:festival_id",
+  authenticateToken,
+  deleteFavourite
+);
 router.post("/login", login);
 
 router.get("/artists", authenticateToken, getArtists);

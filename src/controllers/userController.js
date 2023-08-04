@@ -6,9 +6,26 @@ const {
   verifyCredentials,
 } = require("../middlewares/verifyCredentialsMiddleware");
 
+const testDb = async (req, res, next) => {
+  try {
+    const result = await pool.query("SELECT NOW()");
+    res.status(200).json({
+      status: "success",
+      data: result.rows[0],
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      status: "failure",
+      message: "Database connection error",
+    });
+  }
+};
+
 const getUsers = async (req, res, next) => {
   const queryText = "SELECT * FROM users";
   try {
+    console.log(queryText);
     const result = await pool.query(queryText);
     res.json(result.rows);
   } catch (error) {
@@ -191,4 +208,5 @@ module.exports = {
   addFavourites,
   deleteFavourite,
   login,
+  testDb,
 };
