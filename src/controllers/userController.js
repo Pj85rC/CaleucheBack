@@ -55,12 +55,21 @@ const createUser = async (req, res) => {
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const createdAt = getCurrentDate();
+  const role = "user";
+
   try {
     const queryText =
-      "INSERT INTO users(username, password, email, created_at) VALUES ($1, $2, $3, $4) RETURNING *";
-    const values = [username, hashedPassword, email, createdAt];
+      "INSERT INTO users(username, password, email, created_at, role) VALUES ($1, $2, $3, $4, $5) RETURNING *";
+    const values = [username, hashedPassword, email, createdAt, role];
     const result = await pool.query(queryText, values);
-    res.json(result.rows[0]);
+
+    const user = result.rows[0];
+    const token = jwt.sign(
+      { userId: user.id, userName: user.username, role: user.role },
+      process.env.JWT_SECRET
+    );
+
+    res.json({ token });
   } catch (error) {
     res.status(500).json({ error: "Horror user" });
   }
