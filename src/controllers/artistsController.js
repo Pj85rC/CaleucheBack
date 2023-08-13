@@ -20,7 +20,33 @@ const createArtist = async (req, res) => {
 };
 
 const getArtists = async (req, res) => {
-  const queryText = "SELECT * FROM artists";
+  const queryText = `
+  SELECT 
+  a.id, 
+  a.name, 
+  a.created_at, 
+  a.updated_at, 
+  a.photo_url,
+  genres.genres,
+  links.links
+FROM artists a
+LEFT JOIN (
+  SELECT 
+    ag.artist_id, 
+    array_agg(DISTINCT g.name) as genres
+  FROM artist_genre ag
+  JOIN genres g ON ag.genre_id = g.id
+  GROUP BY ag.artist_id
+) AS genres ON a.id = genres.artist_id
+LEFT JOIN (
+  SELECT 
+    al.artist_id, 
+    jsonb_agg(jsonb_build_object('platform', al.platform, 'url', al.url)) as links
+  FROM artist_links al
+  GROUP BY al.artist_id
+) AS links ON a.id = links.artist_id;
+  `;
+
   try {
     const result = await pool.query(queryText);
     res.json(result.rows);
