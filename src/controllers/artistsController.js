@@ -3,46 +3,77 @@ const { getCurrentDate } = require("../helpers/dateHelpers");
 
 //POST /artists
 const createArtist = async (req, res) => {
-  const { name, genres, links } = req.body;
+  const { name, photo_url, genres, links } = req.body;
+  console.log("Name: ", name);
+  console.log("Photo URL: ", photo_url);
+  console.log("Genres: ", genres);
+  console.log("Social Links: ", links);
+
   const createdAt = getCurrentDate();
 
   try {
-    await pool.query('BEGIN');
+    await pool.query("BEGIN");
 
-    // Insert artist into artists table
-    const artistQueryText = "INSERT INTO artists(name, created_at) VALUES($1, $2) RETURNING id";
-    const artistValues = [name, createdAt];
+    const artistQueryText =
+      "INSERT INTO artists(name, photo_url, created_at) VALUES($1, $2, $3) RETURNING id";
+    console.log("Artist Query Text: ", artistQueryText);
+    const artistValues = [name, photo_url, createdAt];
     const artistResult = await pool.query(artistQueryText, artistValues);
+    console.log("Artist Result: ", artistResult);
+
     const artistId = artistResult.rows[0].id;
 
+    console.log("Artist ID: ", artistId);
+
     if (genres && genres.length) {
-      // Check or insert genres into genres table
       const genreIds = [];
       for (const genre of genres) {
-        let result = await pool.query("SELECT id FROM genres WHERE name = $1", [genre]);
+        let result = await pool.query("SELECT id FROM genres WHERE name = $1", [
+          genre,
+        ]);
+        console.log("Genres Result: ", result);
         if (result.rows.length === 0) {
-          result = await pool.query("INSERT INTO genres(name) VALUES($1) RETURNING id", [genre]);
+          result = await pool.query(
+            "INSERT INTO genres(name) VALUES($1) RETURNING id",
+            [genre]
+          );
         }
         genreIds.push(result.rows[0].id);
       }
 
-      // Insert artist-genre relationships
-      const genreQueryText = "INSERT INTO artist_genre(artist_id, genre_id) VALUES " + genreIds.map((id, index) => `(${artistId}, $${index + 1})`).join(", ");
+      const genreQueryText =
+        "INSERT INTO artist_genre(artist_id, genre_id) VALUES " +
+        genreIds.map((id, index) => `(${artistId}, $${index + 1})`).join(", ");
       await pool.query(genreQueryText, genreIds);
     }
 
+    console.log("Genre Query Text: ", genreQueryText);
+
     if (links && links.length) {
-      // Insert links
-      const linksQueryText = "INSERT INTO artist_links(artist_id, platform, url) VALUES " + links.map((link, index) => `(${artistId}, $${index * 2 + 1}, $${index * 2 + 2})`).join(", ");
-      const linkValues = [].concat(...links.map(link => [link.platform, link.url]));
+      const linksQueryText =
+        "INSERT INTO artist_links(artist_id, platform, url) VALUES " +
+        links
+          .map(
+            (link, index) =>
+              `(${artistId}, $${index * 2 + 1}, $${index * 2 + 2})`
+          )
+          .join(", ");
+
+      console.log("Links Query Text: ", linksQueryText);
+      const linkValues = [].concat(
+        ...links.map((link) => [link.platform, link.url])
+      );
+      console.log("Link Values: ", linkValues);
       await pool.query(linksQueryText, linkValues);
     }
 
-    await pool.query('COMMIT');
+    await pool.query("COMMIT");
+
+    console.log("Artist Result: ", res.json(artistResult.rows[0]));
 
     res.json(artistResult.rows[0]);
   } catch (error) {
-    await pool.query('ROLLBACK');
+    await pool.query("ROLLBACK");
     console.error(error.message);
     res.status(500).json({ error: "Horror artist" });
   }
