@@ -19,7 +19,6 @@ const createArtist = async (req, res) => {
     console.log("Artist Query Text: ", artistQueryText);
     const artistValues = [name, photo_url, createdAt];
     const artistResult = await pool.query(artistQueryText, artistValues);
-    console.log("Artist Result: ", artistResult);
 
     const artistId = artistResult.rows[0].id;
 
@@ -31,7 +30,6 @@ const createArtist = async (req, res) => {
         let result = await pool.query("SELECT id FROM genres WHERE name = $1", [
           genre,
         ]);
-        console.log("Genres Result: ", result);
         if (result.rows.length === 0) {
           result = await pool.query(
             "INSERT INTO genres(name) VALUES($1) RETURNING id",
@@ -41,35 +39,42 @@ const createArtist = async (req, res) => {
         genreIds.push(result.rows[0].id);
       }
 
+      const genreQueryParts = [];
+      const genreValues = [];
+
+      for (let i = 0; i < genreIds.length; i++) {
+        genreQueryParts.push(`(${artistId}, $${i + 1})`);
+        genreValues.push(genreIds[i]);
+      }
+
       const genreQueryText =
         "INSERT INTO artist_genre(artist_id, genre_id) VALUES " +
-        genreIds.map((id, index) => `(${artistId}, $${index + 1})`).join(", ");
-      await pool.query(genreQueryText, genreIds);
+        genreQueryParts.join(", ");
+
+      console.log("Genre Query Text: ", genreQueryText);
+
+      await pool.query(genreQueryText, genreValues);
     }
 
-    console.log("Genre Query Text: ", genreQueryText);
-
     if (links && links.length) {
+      const linksQueryParts = [];
+      const linkValues = [];
+
+      for (let i = 0; i < links.length; i++) {
+        linksQueryParts.push(`(${artistId}, $${2 * i + 1}, $${2 * i + 2})`);
+        linkValues.push(links[i].platform, links[i].url);
+      }
+
       const linksQueryText =
         "INSERT INTO artist_links(artist_id, platform, url) VALUES " +
-        links
-          .map(
-            (link, index) =>
-              `(${artistId}, $${index * 2 + 1}, $${index * 2 + 2})`
-          )
-          .join(", ");
+        linksQueryParts.join(", ");
 
-      console.log("Links Query Text: ", linksQueryText);
-      const linkValues = [].concat(
-        ...links.map((link) => [link.platform, link.url])
-      );
-      console.log("Link Values: ", linkValues);
+      console.log("Link Query Text: ", linksQueryText);
+
       await pool.query(linksQueryText, linkValues);
     }
 
     await pool.query("COMMIT");
-
-    console.log("Artist Result: ", res.json(artistResult.rows[0]));
 
     res.json(artistResult.rows[0]);
   } catch (error) {
@@ -134,19 +139,19 @@ const deleteArtist = async (req, res) => {
   const { id } = req.params;
 
   try {
-    await pool.query('BEGIN');
+    await pool.query("BEGIN");
 
     await pool.query("DELETE FROM artist_genre WHERE artist_id = $1", [id]);
     await pool.query("DELETE FROM artist_links WHERE artist_id = $1", [id]);
     const result = await pool.query("DELETE FROM artists WHERE id = $1", [id]);
 
-    await pool.query('COMMIT');
+    await pool.query("COMMIT");
 
     return result.rowCount === 0
       ? res.status(404).json({ message: "Artist not found" })
       : res.sendStatus(204);
   } catch (error) {
-    await pool.query('ROLLBACK');
+    await pool.query("ROLLBACK");
     console.error(error.message);
     res.status(500).json({ error: "Horror artist" });
   }
@@ -154,41 +159,75 @@ const deleteArtist = async (req, res) => {
 
 const updateArtist = async (req, res) => {
   const id = req.params.id;
-  const { name, genres, links } = req.body;
+  const { name, photo_url, genres, links } = req.body;
   const updatedAt = getCurrentDate();
 
   try {
-    await pool.query('BEGIN');
+    await pool.query("BEGIN");
+
+    let updateQuery = "UPDATE artists SET";
+    let updateValues = [];
+    let valueCounter = 1;
 
     if (name) {
-      const updateArtistQuery = "UPDATE artists SET name = $1, updated_at = $2 WHERE id = $3";
-      await pool.query(updateArtistQuery, [name, updatedAt, id]);
+      updateQuery += ` name = $${valueCounter++},`;
+      updateValues.push(name);
+    }
+
+    if (photo_url) {
+      updateQuery += ` photo_url = $${valueCounter++},`;
+      updateValues.push(photo_url);
+    }
+
+    updateQuery += ` updated_at = $${valueCounter++}`;
+    updateValues.push(updatedAt);
+    updateQuery += ` WHERE id = $${valueCounter++}`;
+    updateValues.push(id);
+
+    if (updateValues.length > 1) {
+      await pool.query(updateQuery, updateValues);
     }
 
     if (genres) {
-      // Delete existing genres for the artist
       await pool.query("DELETE FROM artist_genre WHERE artist_id = $1", [id]);
-      
-      // Insert new genres for the artist
-      const genreQueryText = "INSERT INTO artist_genre(artist_id, genre_id) VALUES " + genres.map((genre, index) => `(${id}, $${index + 1})`).join(", ");
-      await pool.query(genreQueryText, genres);
-    }
 
+      const genreIds = [];
+      for (const genre of genres) {
+        let result = await pool.query("SELECT id FROM genres WHERE name = $1", [
+          genre,
+        ]);
+        if (result.rows.length === 0) {
+          result = await pool.query(
+            "INSERT INTO genres(name) VALUES($1) RETURNING id",
+            [genre]
+          );
+        }
+        genreIds.push(result.rows[0].id);
+      }
+
+      const genreQueryText =
+        "INSERT INTO artist_genre(artist_id, genre_id) VALUES " +
+        genreIds.map((id, index) => `(${id}, $${index + 1})`).join(", ");
+      await pool.query(genreQueryText, genreIds);
+    }
     if (links) {
-      // Delete existing links for the artist
       await pool.query("DELETE FROM artist_links WHERE artist_id = $1", [id]);
-      
-      // Insert new links for the artist
-      const linksQueryText = "INSERT INTO artist_links(artist_id, platform, url) VALUES " + links.map((link, index) => `(${id}, $${index * 2 + 1}, $${index * 2 + 2})`).join(", ");
-      const linkValues = [].concat(...links.map(link => [link.platform, link.url]));
+
+      const linksQueryText =
+        "INSERT INTO artist_links(artist_id, platform, url) VALUES " +
+        links
+          .map((link, index) => `(${id}, $${index * 2 + 1}, $${index * 2 + 2})`)
+          .join(", ");
+      const linkValues = [].concat(
+        ...links.map((link) => [link.platform, link.url])
+      );
       await pool.query(linksQueryText, linkValues);
     }
 
-    await pool.query('COMMIT');
-
+    await pool.query("COMMIT");
     res.status(200).json({ message: "Artist updated successfully" });
   } catch (err) {
-    await pool.query('ROLLBACK');
+    await pool.query("ROLLBACK");
     res.status(500).json({ status: "error", message: "An error occurred" });
   }
 };
