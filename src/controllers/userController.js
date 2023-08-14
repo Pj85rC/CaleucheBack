@@ -99,7 +99,7 @@ const login = async (req, res) => {
     const user = await verifyCredentials(username, email, password);
     console.log(user);
     const token = jwt.sign(
-      { userId: user.id, userName: user.username, role: user.role },
+      { userId: user.id, userName: user.username, email: user.email, role: user.role },
       process.env.JWT_SECRET
     );
     res.send(token);
