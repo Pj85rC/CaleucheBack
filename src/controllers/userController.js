@@ -118,7 +118,7 @@ const getFavourites = async (req, res) => {
 
     return result.rows.length === 0
       ? res.status(404).json({ message: "No favourites found for this user" })
-      : res.json(result.rows[0]);
+      : res.json(result.rows);
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ error: "Error favourites" });
